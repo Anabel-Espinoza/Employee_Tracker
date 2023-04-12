@@ -1,3 +1,4 @@
+// Variables and required packages
 const inquirer = require ('inquirer')
 const mysql = require('mysql2')
 const cTable = require('console.table')
@@ -5,6 +6,7 @@ let arrayDepartments = []
 let arrayRoles = []
 let arrayEmployees = []
 
+// db connection
 const db = mysql.createConnection(
     {
         host:'localhost',
@@ -15,6 +17,7 @@ const db = mysql.createConnection(
     console.log('Connected to the management_db database')
 )
 
+// Inquirer questions - Main question and follow up
 const startQ = [
     {
         type: 'list',
@@ -85,9 +88,7 @@ const addEmployeeQ = [
     },
 ]
 
-const viewRoles= 'SELECT role.id, role.title, department.name AS department, role.salary FROM role JOIN department ON  role.department_id = department.id ORDER BY role.id'
-const viewEmployee = 'SELECT employee.id, employee.first_name, employee.last_name, role.title, role.salary, department.name AS deparment, concat (e.first_name, " ", e.last_name) as Manager FROM employee JOIN role ON role.id = employee.role_id JOIN department ON role.department_id = department.id LEFT JOIN employee e ON e.id = employee.manager_id'
-
+// Main question
 function init() {
     inquirer
         .prompt(startQ)
@@ -95,24 +96,16 @@ function init() {
             
             switch (response.action) {
                 case 'View all employees':
-                    db.query(viewEmployee, (err, results) => {
-                        if (err) throw err
-                        console.table(results)
-                        init()
-                    })
+                    viewEmployees()                    
                     break
                 case 'Add employee':
                     addEmployee()
                     break
                 case 'Update employee role':
-                    console.log('Update employee role')
+                    UpdateEmpRole()
                     break
                 case 'View all roles':
-                    db.query(viewRoles, (err, results) => {
-                        if (err) throw err
-                        console.table(results)
-                        init()
-                    })
+                    viewRoles()
                     break
                 case 'Add role':
                     addRole()
@@ -127,23 +120,25 @@ function init() {
                 case 'Add department':
                     addDepartment()
                     break
-                default:           
-                    console.log('Exit')
+                default:
+                    db.end()           
+                    console.log('--Leaving app--')
             }
         // console.log(`\n`)
     }) 
 }
 
-function addDepartment() {
-    inquirer
-        .prompt(addDepartmentQ)
-        .then((response) => {
-            db.query(`INSERT INTO department (name) VALUES('${response.newDept}')`, (err, response) => {
-                if(err) throw err; 
-                console.log (`\n New Department has been added to the database \n`)
-                init() })
-        })
-                        
+function viewEmployees() {
+    const viewEmployee = `SELECT employee.id, employee.first_name, employee.last_name, role.title, role.salary, department.name AS deparment, concat (e.first_name, " ", e.last_name) as Manager 
+                FROM employee 
+                JOIN role ON role.id = employee.role_id
+                JOIN department ON role.department_id = department.id
+                LEFT JOIN employee e ON e.id = employee.manager_id`
+    db.query(viewEmployee, (err, results) => {
+        if (err) throw err
+        console.table(results)
+        init()
+    })
 }
 
 function addEmployee() {
@@ -165,11 +160,58 @@ function addEmployee() {
     inquirer
         .prompt(addEmployeeQ)
         .then((response) => {
-            // db.query(`INSERT INTO role (title) VALUES('${response.title}')`)    
-            
+            let idManager = ''
+            let idRole = ''
+            // Get role id from role title entered by the user
+            db.query(`SELECT id FROM role WHERE title = '${response.role}'`, (err, row) => {
+                if (err) throw err
+                idRole = row[0].id    
+            })
+            // Get manager id from the employee name entered by the user
+            let managerName = response.manager.split(" ")[0]
+            let managerLastN = response.manager.split(" ")[1]
+            console.log(`manager name:${managerName}${managerLastN}`)
+            db.promise().query(`SELECT id FROM employee WHERE first_name = '${managerName}' AND last_name = '${managerLastN}';`)
+            .then(([rows, fields]) => {
+                idManager = rows[0].id
+                // INSERT new employee in employee table
+                db.query(`INSERT INTO employee (first_name, last_name, role_id, manager_id)
+                        VALUES('${response.firstName}', '${response.lastName}', ${idRole}, ${idManager});`)    
+            })
+                   
             console.log (`\n New employee has been added to the database \n`)
             init()
         })                   
+}
+
+function UpdateEmpRole() {
+    console.log('update employee role')
+    init()
+}
+
+function addDepartment() {
+    inquirer
+        .prompt(addDepartmentQ)
+        .then((response) => {
+            db.query(`INSERT INTO department (name) VALUES('${response.newDept}')`, (err, response) => {
+                if(err) throw err; 
+                console.log (`\n New Department has been added to the database \n`)
+                init() })
+        })
+                        
+}
+
+
+function viewRoles() {
+    const viewRole= `SELECT role.id, role.title, department.name AS department, role.salary 
+                FROM role
+                JOIN department ON  role.department_id = department.id ORDER BY role.id`
+
+    db.query(viewRole, (err, results) => {
+        if (err) throw err
+        console.table(results)
+        init()
+    })
 }
 
 function addRole() {
@@ -184,19 +226,17 @@ function addRole() {
     inquirer
         .prompt(addRoleQ)
         .then((response) => {
-            let roleDept = ''
+            let roleDept = '' // GET id from the department selected by the user to add to role table
                 db.promise().query({sql: `SELECT id FROM department WHERE name = '${response.department}'`, rowsAsArray: true})
                 .then(([rows, fields]) => {
-                    // console.table(rows)
                     roleDept = rows[0][0]
                     // console.log('role:', roleDept)
                     db.query(`INSERT INTO role (title, salary, department_id) VALUES ('${response.title}', ${response.salary}, ${roleDept});`)
-                    // .then(() => init());
                     init()
                 })
-       
             console.log (`\n New role has been added to the database \n`)
         })                   
 }
 
+// Start the app
 init()
