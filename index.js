@@ -157,7 +157,8 @@ function viewEmployees() {
 
 function addEmployee() {
     getEmplRoleArrays()
-        
+    arrayEmployees.push('None')
+  
     inquirer
         .prompt(addEmployeeQ)
         .then((response) => {
@@ -167,7 +168,7 @@ function addEmployee() {
             db.promise().query(`SELECT id FROM role WHERE title = '${response.role}'`)
                 .then (([row, fields]) => {            
                 idRole = row[0].id    
-                if (response.manager !== 'Null') {
+                if (response.manager !== 'None') {
                     let managerName = response.manager.split(" ")[0]
                     let managerLastN = response.manager.split(" ")[1]
                     // Get manager id from the employee name entered by the user
@@ -180,6 +181,7 @@ function addEmployee() {
                             last_name: response.lastName, 
                             role_id: idRole, 
                             manager_id: idManager})
+                            getEmplRoleArrays()            
                     })          
                 } else {
                     db.query(`INSERT INTO employee SET ?`, {
@@ -187,9 +189,9 @@ function addEmployee() {
                         last_name: response.lastName,
                         role_id: idRole
                     })
+                    getEmplRoleArrays()
                 }
                 console.log (`\n --New employee has been added to the database-- \n`)
-                getEmplRoleArrays()
                 init()
             })
         })                                       
@@ -286,7 +288,6 @@ function getEmplRoleArrays() {
         for (let i=0; i<rows.length; i++) {
             arrayEmployees.push(rows[i].employeeName)
         }
-        arrayEmployees.push('Null')
     })
 }
 
