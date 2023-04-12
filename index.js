@@ -1,21 +1,10 @@
 // Variables and required packages
 const inquirer = require ('inquirer')
-const mysql = require('mysql2')
 const cTable = require('console.table')
+db = require('./connection')
 let arrayDepartments = []
 let arrayRoles = []
 let arrayEmployees = []
-
-// db connection
-const db = mysql.createConnection(
-    {
-        host:'localhost',
-        user:'root',
-        password:'',
-        database: 'management_db'
-    },
-    console.log('Connected to the management_db database')
-)
 
 // Inquirer questions - Main question and follow up
 const startQ = [
@@ -31,6 +20,7 @@ const startQ = [
                 'Add role',
                 'View all departments',
                 'Add department',
+                'View employees by manager',
                 'Quit'
                 ]
     }
@@ -103,6 +93,15 @@ const updateEmpRoleQ = [
     }
 ]
 
+const viewByManagerQ = [
+    {
+        type: 'list',
+        name: 'manager',
+        message: 'Select a manager to view who reports to them.',
+        choices: arrayEmployees
+    }
+]
+
 // Main question
 function init() {
     inquirer
@@ -134,6 +133,9 @@ function init() {
                     break                   
                 case 'Add department':
                     addDepartment()
+                    break
+                case 'View employees by manager':
+                    viewByManager()
                     break
                 default:
                     db.end()           
@@ -231,7 +233,7 @@ function addDepartment() {
         .then((response) => {
             db.query(`INSERT INTO department (name) VALUES('${response.newDept}')`, (err, response) => {
                 if(err) throw err; 
-                console.log (`\n New Department has been added to the database \n`)
+                console.log (`\n --New Department has been added to the database-- \n`)
                 init()
             })
         })                  
@@ -261,16 +263,39 @@ function addRole() {
         .prompt(addRoleQ)
         .then((response) => {
             let roleDept = '' // GET id from the department selected by the user to add to role table
-                db.promise().query({sql: `SELECT id FROM department WHERE name = '${response.department}'`, rowsAsArray: true})
+                db.promise().query(`SELECT id FROM department WHERE name = '${response.department}'`)
                 .then(([rows, fields]) => {
-                    roleDept = rows[0][0]
+                    roleDept = rows[0].id
                     db.query(`INSERT INTO role (title, salary, department_id) VALUES ('${response.title}', ${response.salary}, ${roleDept});`)
                     init()
                 })
-            console.log (`\n New role has been added to the database \n`)
+            console.log (`\n --New role has been added to the database-- \n`)
         })                   
 }
 
+function viewByManager() {
+    getEmplRoleArrays()
+    
+    inquirer 
+        .prompt(viewByManagerQ)
+        .then((response) => { 
+            let manager_id = ''
+            let managerName = response.manager.split(" ")[0]
+            let managerLastN = response.manager.split(" ")[1]
+            db.promise().query(`SELECT id FROM employee WHERE first_name = '${managerName}' AND last_name = '${managerLastN}'`)
+                .then(([rows, fields]) => {
+                    manager_id = rows[0].id
+                    const viewQuery = `SELECT id, first_name, last_name 
+                        FROM employee 
+                        WHERE manager_id = ${manager_id}`
+                    db.query(viewQuery, (err, results) => {
+                    if (err) throw err
+                    console.table(results)
+                    init()
+                    })
+                })
+        })
+}
 
 // Helper function to add current employees and current roles to use in inquirer lists
 function getEmplRoleArrays() {
@@ -290,6 +315,8 @@ function getEmplRoleArrays() {
         }
     })
 }
+// Populate arrays for inquirer lists
+getEmplRoleArrays()
 
 // Start the app
 init()
