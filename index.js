@@ -22,6 +22,7 @@ const startQ = [
                 'Add department',
                 'View employees by manager',
                 'Delete department',
+                'Budget by department',
                 'Quit'
                 ]
     }
@@ -146,6 +147,9 @@ function init() {
                 case 'Delete department':
                     deleteDepartment()
                     break
+                case 'Budget by department':
+                    budgetByDept()
+                    break
                 default:
                     db.end()           
                     console.log('--Leaving app--')
@@ -193,7 +197,6 @@ function addEmployee() {
                             last_name: response.lastName, 
                             role_id: idRole, 
                             manager_id: idManager})
-                            // getEmplRoleArrays()            
                     })          
                 } else {
                     db.query(`INSERT INTO employee SET ?`, {
@@ -201,7 +204,6 @@ function addEmployee() {
                         last_name: response.lastName,
                         role_id: idRole
                     })
-                    // getEmplRoleArrays()
                 }
                 arrayEmployees = []
                 arrayRoles = []
@@ -212,7 +214,8 @@ function addEmployee() {
 }
 
 function UpdateEmpRole() {
-    getEmplRoleArrays()
+    employeeArray()
+    rolesArray()
 
     inquirer
         .prompt(updateEmpRoleQ)
@@ -290,9 +293,9 @@ function viewDepartments() {
     })
 }
 
-function viewByManager() {
-    employeeArray()
-
+const viewByManager = async() => {
+    const array = await employeeArray()
+    // console.log(arrayEmployees)
     inquirer 
         .prompt(viewByManagerQ)
         .then((response) => { 
@@ -307,6 +310,7 @@ function viewByManager() {
                         WHERE manager_id = ${manager_id}`
                     db.query(viewQuery, (err, results) => {
                     if (err) throw err
+                    arrayEmployees = []
                     console.table(results)
                     init()
                     })
@@ -325,6 +329,18 @@ function deleteDepartment() {
             init()
         })
     })                 
+}
+
+function budgetByDept() {
+    db.query(`SELECT department.name AS department, sum(salary) AS budget
+    FROM role
+    JOIN department
+    ON  role.department_id = department.id
+    GROUP by department_id`, (err, results) => {
+        if(err) throw err
+        console.table(results)
+        init()
+    })
 }
 
 // Add all current roles in arrayRoles to insert in inquirer list
@@ -349,18 +365,13 @@ function employeeArray() {
 
 // Add current departments into arrayDepartments to use in inquirer list
 function departmentArray() {
-    // arrayDepartments = []
     db.query('SELECT name FROM department', (err, results) => {
         for (let i=0; i<results.length; i++) {
             arrayDepartments.push(results[i].name)
-            // console.log(arrayDepartments)
         }
     })
-    // console.log(arrayDepartments)
 }
 
-// Populate arrays for inquirer lists
-// getEmplRoleArrays()
-
+// employeeArray()
 // Start the app
 init()

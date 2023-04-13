@@ -29,3 +29,10 @@ INSERT INTO role (title, salary, department_id)
 -- ADD NEW EMPLOYEE
 INSERT INTO employee (first_name, last_name, role_id, manager_id)
     VALUES('Ana', 'Esp', 2, 5);
+
+-- BUDGET BY DEPARTMENT
+SELECT department.name AS department, sum(salary) AS budget
+FROM role
+JOIN department
+ON  role.department_id = department.id
+GROUP by department_id
