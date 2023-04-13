@@ -213,9 +213,20 @@ function addEmployee() {
         })                                       
 }
 
-function UpdateEmpRole() {
-    employeeArray()
-    rolesArray()
+function UpdateEmpRole() {    
+    db.promise().query('SELECT concat(first_name, " ", last_name) as employeeName FROM employee')
+    .then (([rows, fields]) => {
+        // console.log(rows)
+        for (let i=0; i<rows.length; i++) {
+            arrayEmployees.push(rows[i].employeeName)
+        }
+        // console.log(arrayEmployees)
+        db.query('SELECT title FROM role', (err, results) => {
+            if (err) throw err
+            for (let i=0; i<results.length; i++) {
+                arrayRoles.push(results[i].title)
+            }
+        })
 
     inquirer
         .prompt(updateEmpRoleQ)
@@ -239,6 +250,7 @@ function UpdateEmpRole() {
        })
         console.log(`\n --Employee's role has been updated in the database-- \n`)
         init()
+        })
     })
 }
 
@@ -266,7 +278,7 @@ function viewRoles() {
     })
 }
 
-const addRole = async() => {
+function addRole() {
     // Add current department names in arrayDepartments to insert in the inquirer list
     departmentArray()
     
@@ -372,6 +384,5 @@ function departmentArray() {
     })
 }
 
-// employeeArray()
 // Start the app
 init()
