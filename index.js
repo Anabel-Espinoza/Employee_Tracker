@@ -1,10 +1,17 @@
 // Variables and required packages
 const inquirer = require ('inquirer')
 const cTable = require('console.table')
+const logo = require('asciiart-logo');
 db = require('./connection')
 let arrayDepartments = []
 let arrayRoles = []
-let arrayEmployees = []
+let arrayManagers = []
+let arrayEmployee = []
+
+function printLogo() {
+    const config = require('./package.json');
+    console.log(logo(config).render());
+}
 
 // Inquirer questions - Main question and follow up
 const startQ = [
@@ -75,10 +82,10 @@ const addEmployeeQ = [
         type: 'list',
         name: 'manager',
         message: "Enter employee's manager",
-        choices: arrayEmployees
+        choices: arrayManagers
     },
 ]
-const arrayEmployee = []
+
 const updateEmpRoleQ = [
     {
         type: 'list',
@@ -99,7 +106,7 @@ const viewByManagerQ = [
         type: 'list',
         name: 'manager',
         message: 'Select a manager to view who reports to them.',
-        choices: arrayEmployees
+        choices: arrayManagers
     }
 ]
 
@@ -160,7 +167,7 @@ function viewEmployees() {
 function addEmployee() {
     rolesArray() // Get current roles/employees from the database to use in inquirer list
     employeeArray()
-    arrayEmployees.push('None') // Add null option in manager
+    arrayManagers.push('None') // Add null option in manager
   
     inquirer
         .prompt(addEmployeeQ)
@@ -192,7 +199,7 @@ function addEmployee() {
                         role_id: idRole
                     })
                 }
-                arrayEmployees = []
+                arrayManagers = []
                 arrayRoles = []
                 console.log (`\n --New employee has been added to the database-- \n`)
                 init()
@@ -300,7 +307,7 @@ function viewByManager() {
     .then (([rows, fields]) => {
         // console.log(rows)
         for (let i=0; i<rows.length; i++) {
-            arrayEmployees.push(rows[i].employeeName)
+            arrayManagers.push(rows[i].employeeName)
         }
     
     inquirer 
@@ -317,9 +324,8 @@ function viewByManager() {
                         WHERE manager_id = ${manager_id}`
                     db.query(viewQuery, (err, results) => {
                     if (err) throw err
-                    arrayEmployees = []
                     console.table(results)
-                    arrayEmployees= []
+                    arrayManagers= []
                     init()
                     })
                 })
@@ -327,11 +333,13 @@ function viewByManager() {
 }
 
 function budgetByDept() {
-    db.query(`SELECT department.name AS department, sum(salary) AS budget
-    FROM role
+    db.query(`SELECT department.name AS deparment, sum(role.salary) AS budget
+    FROM employee
+    JOIN role
+    ON employee.role_id = role.id
     JOIN department
-    ON  role.department_id = department.id
-    GROUP by department_id`, (err, results) => {
+    ON department.id = role.department_id
+    GROUP by department.name;`, (err, results) => {
         if(err) throw err
         console.table(results)
         init()
@@ -348,12 +356,12 @@ function rolesArray() {
     })
 }
 
-// Add all current employees in arrayEmployees to insert in inquirer list
+// Add all current employees in arrayManagers to insert in inquirer list
 function employeeArray() {
     db.query('SELECT concat(first_name, " ", last_name) as employeeName FROM employee', (err, rows) => {
     if (err) throw err
     for (let i=0; i<rows.length; i++) {
-        arrayEmployees.push(rows[i].employeeName)
+        arrayManagers.push(rows[i].employeeName)
     }
     })
 }
@@ -368,4 +376,5 @@ function departmentArray() {
 }
 
 // Start the app
+printLogo()
 init()
