@@ -21,6 +21,7 @@ const startQ = [
                 'View all departments',
                 'Add department',
                 'View employees by manager',
+                'Delete department',
                 'Quit'
                 ]
     }
@@ -102,6 +103,15 @@ const viewByManagerQ = [
     }
 ]
 
+const deleteDepartmentQ = [
+    {
+        type: 'list',
+        name: 'department',
+        message: 'Select a department to delete',
+        choices: arrayDepartments
+    }
+]
+
 // Main question
 function init() {
     inquirer
@@ -125,17 +135,16 @@ function init() {
                     addRole()
                     break
                 case 'View all departments':
-                    db.query('SELECT * FROM department', (err, results) => {
-                        if (err) throw err
-                        console.table(results)
-                        init()
-                    }) 
+                    viewDepartments() 
                     break                   
                 case 'Add department':
                     addDepartment()
                     break
                 case 'View employees by manager':
                     viewByManager()
+                    break
+                case 'Delete department':
+                    deleteDepartment()
                     break
                 default:
                     db.end()           
@@ -158,8 +167,9 @@ function viewEmployees() {
 }
 
 function addEmployee() {
-    getEmplRoleArrays()
-    arrayEmployees.push('None')
+    rolesArray() // Get current roles/employees from the database to use in inquirer list
+    employeeArray()
+    arrayEmployees.push('None') // Add null option in manager
   
     inquirer
         .prompt(addEmployeeQ)
@@ -183,7 +193,7 @@ function addEmployee() {
                             last_name: response.lastName, 
                             role_id: idRole, 
                             manager_id: idManager})
-                            getEmplRoleArrays()            
+                            // getEmplRoleArrays()            
                     })          
                 } else {
                     db.query(`INSERT INTO employee SET ?`, {
@@ -191,8 +201,10 @@ function addEmployee() {
                         last_name: response.lastName,
                         role_id: idRole
                     })
-                    getEmplRoleArrays()
+                    // getEmplRoleArrays()
                 }
+                arrayEmployees = []
+                arrayRoles = []
                 console.log (`\n --New employee has been added to the database-- \n`)
                 init()
             })
@@ -251,14 +263,10 @@ function viewRoles() {
     })
 }
 
-function addRole() {
+const addRole = async() => {
     // Add current department names in arrayDepartments to insert in the inquirer list
-    db.query({sql: 'SELECT name FROM department', rowsAsArray: true}, function(err, results, fields) {
-        for (let i=0; i<results.length; i++) {
-            arrayDepartments.push(results[i][0])
-        }
-    })
-
+    departmentArray()
+    
     inquirer
         .prompt(addRoleQ)
         .then((response) => {
@@ -267,15 +275,24 @@ function addRole() {
                 .then(([rows, fields]) => {
                     roleDept = rows[0].id
                     db.query(`INSERT INTO role (title, salary, department_id) VALUES ('${response.title}', ${response.salary}, ${roleDept});`)
+                    console.log (`\n --New role has been added to the database-- \n`)
+                    arrayDepartments = []
                     init()
                 })
-            console.log (`\n --New role has been added to the database-- \n`)
         })                   
 }
 
+function viewDepartments() {
+    db.query('SELECT * FROM department', (err, results) => {
+        if (err) throw err
+        console.table(results)
+        init()
+    })
+}
+
 function viewByManager() {
-    getEmplRoleArrays()
-    
+    employeeArray()
+
     inquirer 
         .prompt(viewByManagerQ)
         .then((response) => { 
@@ -297,26 +314,53 @@ function viewByManager() {
         })
 }
 
-// Helper function to add current employees and current roles to use in inquirer lists
-function getEmplRoleArrays() {
-    // Add all current roles in arrayRoles to insert in the inquirer list
+function deleteDepartment() {
+    console.log('array if', arrayDepartments)
+    inquirer
+        .prompt(deleteDepartmentQ)
+        .then((response) => {          
+            db.query(`DELETE FROM department WHERE name = ?`, [response.department], (err, result) => {
+            if (err) throw err
+            console.log(`/n -- Department has been deleted --`)
+            init()
+        })
+    })                 
+}
+
+// Add all current roles in arrayRoles to insert in inquirer list
+function rolesArray() {
     db.query('SELECT title FROM role', (err, results) => {
-        if (err) throw err
-        for (let i=0; i<results.length; i++) {
-            arrayRoles.push(results[i].title)
-        }
-    })
-    
-    // Add all current employees in arrayEmployees to insert in the inquirer list
-    db.query('SELECT concat(first_name, " ", last_name) as employeeName FROM employee', (err, rows) => {
-        if (err) throw err
-        for (let i=0; i<rows.length; i++) {
-            arrayEmployees.push(rows[i].employeeName)
-        }
+    if (err) throw err
+    for (let i=0; i<results.length; i++) {
+        arrayRoles.push(results[i].title)
+    }
     })
 }
+
+// Add all current employees in arrayEmployees to insert in inquirer list
+function employeeArray() {
+    db.query('SELECT concat(first_name, " ", last_name) as employeeName FROM employee', (err, rows) => {
+    if (err) throw err
+    for (let i=0; i<rows.length; i++) {
+        arrayEmployees.push(rows[i].employeeName)
+    }
+    })
+}
+
+// Add current departments into arrayDepartments to use in inquirer list
+function departmentArray() {
+    // arrayDepartments = []
+    db.query('SELECT name FROM department', (err, results) => {
+        for (let i=0; i<results.length; i++) {
+            arrayDepartments.push(results[i].name)
+            // console.log(arrayDepartments)
+        }
+    })
+    // console.log(arrayDepartments)
+}
+
 // Populate arrays for inquirer lists
-getEmplRoleArrays()
+// getEmplRoleArrays()
 
 // Start the app
 init()
