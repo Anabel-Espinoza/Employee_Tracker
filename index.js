@@ -21,7 +21,6 @@ const startQ = [
                 'View all departments',
                 'Add department',
                 'View employees by manager',
-                'Delete department',
                 'Budget by department',
                 'Quit'
                 ]
@@ -79,13 +78,13 @@ const addEmployeeQ = [
         choices: arrayEmployees
     },
 ]
-
+const arrayEmployee = []
 const updateEmpRoleQ = [
     {
         type: 'list',
         name: 'employee',
         message: "Which employee's role do you want to update?",
-        choices: arrayEmployees
+        choices: arrayEmployee
     },
     {
         type: 'list',
@@ -101,15 +100,6 @@ const viewByManagerQ = [
         name: 'manager',
         message: 'Select a manager to view who reports to them.',
         choices: arrayEmployees
-    }
-]
-
-const deleteDepartmentQ = [
-    {
-        type: 'list',
-        name: 'department',
-        message: 'Select a department to delete',
-        choices: arrayDepartments
     }
 ]
 
@@ -143,9 +133,6 @@ function init() {
                     break
                 case 'View employees by manager':
                     viewByManager()
-                    break
-                case 'Delete department':
-                    deleteDepartment()
                     break
                 case 'Budget by department':
                     budgetByDept()
@@ -217,42 +204,45 @@ function UpdateEmpRole() {
     db.promise().query('SELECT concat(first_name, " ", last_name) as employeeName FROM employee')
     .then (([rows, fields]) => {
         // console.log(rows)
-        for (let i=0; i<rows.length; i++) {
-            arrayEmployees.push(rows[i].employeeName)
+        for (let i=0; i < rows.length; i++) {
+            arrayEmployee.push(rows[i].employeeName)
         }
-        // console.log(arrayEmployees)
-        db.query('SELECT title FROM role', (err, results) => {
-            if (err) throw err
-            for (let i=0; i<results.length; i++) {
-                arrayRoles.push(results[i].title)
+        console.log(arrayEmployee)
+        db.promise().query('SELECT title FROM role')
+        .then (([rows, fields]) => {
+            for (let i=0; i < rows.length; i++) {
+                arrayRoles.push(rows[i].title)
             }
+            inquirer
+            .prompt(updateEmpRoleQ)
+            .then((response) => {
+                let idEmployee = ''
+                let idRole = ''
+        
+            // Get role id from role title entered by the user
+            db.query(`SELECT id FROM role WHERE title = '${response.newRole}'`, (err, row) => {
+                if (err) throw err
+                idRole = row[0].id                
+            })
+            // Get employee id from the employee name entered by the user
+            let employeeName = response.employee.split(" ")[0]
+            let employeeLastN = response.employee.split(" ")[1]         
+            db.promise().query(`SELECT id FROM employee WHERE first_name = '${employeeName}' AND last_name = '${employeeLastN}';`)
+            .then(([rows, fields]) => {
+                idEmployee = rows[0].id
+                // UPDATE employee's role in employee table
+                db.query(`UPDATE employee SET role_id = ? WHERE id = ?`, [idRole, idEmployee] )
         })
-
-    inquirer
-        .prompt(updateEmpRoleQ)
-        .then((response) => {
-            let idEmployee = ''
-            let idRole = ''
-    
-        // Get role id from role title entered by the user
-        db.query(`SELECT id FROM role WHERE title = '${response.newRole}'`, (err, row) => {
-            if (err) throw err
-            idRole = row[0].id                
+            console.log(`\n --Employee's role has been updated in the database-- \n`)
+            init()
+            })
         })
-        // Get employee id from the employee name entered by the user
-        let employeeName = response.employee.split(" ")[0]
-        let employeeLastN = response.employee.split(" ")[1]         
-        db.promise().query(`SELECT id FROM employee WHERE first_name = '${employeeName}' AND last_name = '${employeeLastN}';`)
-        .then(([rows, fields]) => {
-            idEmployee = rows[0].id
-            // UPDATE employee's role in employee table
-            db.query(`UPDATE employee SET role_id = ? WHERE id = ?`, [idRole, idEmployee] )
-       })
-        console.log(`\n --Employee's role has been updated in the database-- \n`)
-        init()
-        })
-    })
+    }) 
 }
+
+        // function UpdateRoleStartQ() {
+        //     console.log(arrayEmployee)
+            
 
 function addDepartment() {
     inquirer
@@ -305,9 +295,14 @@ function viewDepartments() {
     })
 }
 
-const viewByManager = async() => {
-    const array = await employeeArray()
-    // console.log(arrayEmployees)
+function viewByManager() {
+    db.promise().query('SELECT concat(first_name, " ", last_name) as employeeName FROM employee')
+    .then (([rows, fields]) => {
+        // console.log(rows)
+        for (let i=0; i<rows.length; i++) {
+            arrayEmployees.push(rows[i].employeeName)
+        }
+    
     inquirer 
         .prompt(viewByManagerQ)
         .then((response) => { 
@@ -324,23 +319,11 @@ const viewByManager = async() => {
                     if (err) throw err
                     arrayEmployees = []
                     console.table(results)
+                    arrayEmployees= []
                     init()
                     })
                 })
-        })
-}
-
-function deleteDepartment() {
-    console.log('array if', arrayDepartments)
-    inquirer
-        .prompt(deleteDepartmentQ)
-        .then((response) => {          
-            db.query(`DELETE FROM department WHERE name = ?`, [response.department], (err, result) => {
-            if (err) throw err
-            console.log(`/n -- Department has been deleted --`)
-            init()
-        })
-    })                 
+        }) })
 }
 
 function budgetByDept() {
