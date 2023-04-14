@@ -13,7 +13,7 @@ function printLogo() {
     console.log(logo(config).render());
 }
 
-// Inquirer questions - Main question and follow up
+// Inquirer questions
 const startQ = [
     {
         type: 'list',
@@ -111,7 +111,7 @@ const viewByManagerQ = [
     }
 ]
 
-// Main question
+// Main question start function
 function init() {
     inquirer
         .prompt(startQ)
@@ -160,7 +160,8 @@ function viewEmployees() {
                 FROM employee 
                 JOIN role ON role.id = employee.role_id
                 JOIN department ON role.department_id = department.id
-                LEFT JOIN employee e ON e.id = employee.manager_id`
+                LEFT JOIN employee e ON e.id = employee.manager_id
+                ORDER by employee.id`
     db.query(viewEmployee, (err, results) => {
         if (err) throw err
         console.table(results)
@@ -178,15 +179,12 @@ function addEmployee() {
         .then((response) => {
             let idManager = ''
             let idRole = ''
-            // Get role id from role title entered by the user
             db.promise().query(`SELECT id FROM role WHERE title = '${response.role}'`)
                 .then (([row, fields]) => {            
                 idRole = row[0].id    
                 if (response.manager !== 'None') {
-                    let managerName = response.manager.split(" ")[0]
-                    let managerLastN = response.manager.split(" ")[1]
                     // Get manager id from the employee name entered by the user
-                    db.promise().query(`SELECT id FROM employee WHERE first_name = '${managerName}' AND last_name = '${managerLastN}';`)
+                    db.promise().query(`SELECT id FROM employee WHERE concat(first_name, " ", last_name) = '${response.manager}';`)
                     .then(([rows, fields]) => {
                         idManager = rows[0].id
                          // INSERT new employee in employee table
@@ -218,7 +216,7 @@ function UpdateEmpRole() {
         for (let i=0; i < rows.length; i++) {
             arrayEmployee.push(rows[i].employeeName)
         }
-        console.log(arrayEmployee)
+        // console.log(arrayEmployee)
         db.promise().query('SELECT title FROM role')
         .then (([rows, fields]) => {
             for (let i=0; i < rows.length; i++) {
@@ -305,7 +303,6 @@ function viewDepartments() {
 function viewByManager() {
     db.promise().query('SELECT concat(first_name, " ", last_name) as employeeName FROM employee')
     .then (([rows, fields]) => {
-        // console.log(rows)
         for (let i=0; i<rows.length; i++) {
             arrayManagers.push(rows[i].employeeName)
         }
@@ -350,6 +347,7 @@ function deleteDepartment() {
         .then ((response) =>
         db.promise().query(`DELETE FROM department WHERE name = ?`, response.department)
         .then(([rows, fields]) => {
+            arrayDepartments = []
             console.log(`\n -- Department deleted -- \n`)
             init()
         })
