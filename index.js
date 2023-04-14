@@ -28,6 +28,7 @@ const startQ = [
                 'View all departments',
                 'Add department',
                 'View employees by manager',
+                'Delete department',
                 'Budget by department',
                 'Quit'
                 ]
@@ -141,6 +142,9 @@ function init() {
                 case 'View employees by manager':
                     viewByManager()
                     break
+                case 'Delete department':
+                    deleteDepartment()
+                    break
                 case 'Budget by department':
                     budgetByDept()
                     break
@@ -247,10 +251,6 @@ function UpdateEmpRole() {
     }) 
 }
 
-        // function UpdateRoleStartQ() {
-        //     console.log(arrayEmployee)
-            
-
 function addDepartment() {
     inquirer
         .prompt(addDepartmentQ)
@@ -330,6 +330,31 @@ function viewByManager() {
                     })
                 })
         }) })
+}
+
+function deleteDepartment() {
+    db.promise().query('SELECT name FROM department')
+    .then(([results, fields]) => {
+        for (let i=0; i<results.length; i++) {
+            arrayDepartments.push(results[i].name)
+        }
+        inquirer
+        .prompt ([
+            {
+                type: 'list',
+                name: 'department',
+                message: 'Select department to Delete (all employees and roles from that department will be deleted, too)',
+                choices: arrayDepartments
+            }
+        ])
+        .then ((response) =>
+        db.promise().query(`DELETE FROM department WHERE name = ?`, response.department)
+        .then(([rows, fields]) => {
+            console.log(`\n -- Department deleted -- \n`)
+            init()
+        })
+        )
+    }) 
 }
 
 function budgetByDept() {
